@@ -19,7 +19,8 @@
       s_aesCbc = Aes.Create(); // More per-call overhead but supported everywhere.
       s_isKnownReusable = false;
 #else
-      s_aesCbc = new AesManaged();
+      s_aesCbc = new AesCryptoServiceProvider(); // aes-ni support
+      // s_aesCbc = new AesManaged();
       s_isKnownReusable = true;
 #endif
 
