@@ -1,9 +1,7 @@
 name: MegaApiClient CI
 
 on:
-  push:
-    branches:
-      - master
+  release:
     tags:
       - 'v*'
   pull_request:
@@ -42,12 +40,12 @@ jobs:
       - name: Create NuGet package
         run: dotnet pack --configuration ${{ env.CONFIGURATION }} ./MegaApiClient/ --no-restore --no-build --output ./artifacts/ -p:PackageVersion=${{ env.GITVERSION_NUGETVERSION }}
 
-      - name: Upload NuGet packages
-        uses: actions/upload-artifact@v3
-        with:
-          name: NuGet packages
-          path: ./artifacts/*.*nupkg
-          if-no-files-found: error
+      # - name: Upload NuGet packages
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: NuGet packages
+      #     path: ./artifacts/*.*nupkg
+      #     if-no-files-found: error
 
   test:
     name: Test 🧪
@@ -65,40 +63,40 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
 
-      - name: Tests
-        run: dotnet test --configuration ${{ env.CONFIGURATION }} ./MegaApiClient.Tests/ --framework net60 --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[MegaApiClient]BigInteger"
-        env:
-          MEGAAPICLIENT_PASSWORD: ${{ secrets.MEGAAPICLIENT_PASSWORD }}
+      # - name: Tests
+      #   run: dotnet test --configuration ${{ env.CONFIGURATION }} ./MegaApiClient.Tests/ --framework net60 --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[MegaApiClient]BigInteger"
+      #   env:
+      #     MEGAAPICLIENT_PASSWORD: ${{ secrets.MEGAAPICLIENT_PASSWORD }}
 
-      - name: Codecov
-        uses: codecov/codecov-action@v2
+      # - name: Codecov
+      #   uses: codecov/codecov-action@v2
 
-  doc:
-    name: Documentation 📚
-    needs: [ build ]
-    runs-on: windows-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
+  # doc:
+  #   name: Documentation 📚
+  #   needs: [ build ]
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v3
 
-      - name: Install DocFX
-        run: nuget install docfx.console -Version 2.58.9
+  #     - name: Install DocFX
+  #       run: nuget install docfx.console -Version 2.58.9
 
-      - name: Build documentation
-        run: |
-          ./docfx.console.2.58.9/tools/docfx.exe metadata ./docs/docfx.json
-          ./docfx.console.2.58.9/tools/docfx.exe build ./docs/docfx.json --globalMetadata "{'_appFooter': 'Copyright © 2013-2022 - Gregoire Pailler - MegaApiClient ${{ needs.build.outputs.semVer }}'}"
+  #     - name: Build documentation
+  #       run: |
+  #         ./docfx.console.2.58.9/tools/docfx.exe metadata ./docs/docfx.json
+  #         ./docfx.console.2.58.9/tools/docfx.exe build ./docs/docfx.json --globalMetadata "{'_appFooter': 'Copyright © 2013-2022 - Gregoire Pailler - MegaApiClient ${{ needs.build.outputs.semVer }}'}"
           
-      - name: Upload Documentation
-        uses: actions/upload-artifact@v3
-        with:
-          name: Documentation
-          path: ./docs/_site/
-          if-no-files-found: error
+  #     - name: Upload Documentation
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: Documentation
+  #         path: ./docs/_site/
+  #         if-no-files-found: error
 
   deploy:
     name: Deploy 🚀
-    needs: [ build, test, doc ]
+    needs: [ build, test ]
     runs-on: windows-latest
     steps:
       - name: Download NuGet packages
@@ -107,14 +105,14 @@ jobs:
           name: NuGet packages
           path: ./artifacts/
 
-      - name: Publish on MyGet
-        run: |
-          cd ./artifacts/
-          dotnet nuget push *.nupkg --source https://www.myget.org/F/megaapiclient/api/v3/index.json --api-key ${{ secrets.MYGET_SECRET }}
+      # - name: Publish on MyGet
+      #   run: |
+      #     cd ./artifacts/
+      #     dotnet nuget push *.nupkg --source https://www.myget.org/F/megaapiclient/api/v3/index.json --api-key ${{ secrets.MYGET_SECRET }}
 
   deploy-release:
     name: Deploy release 🚀🌐
-    needs: [ build, test, doc ]
+    needs: [ build, test ]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -127,17 +125,17 @@ jobs:
           name: NuGet packages
           path: ./artifacts/
 
-      - name: Download Documentation
-        uses: actions/download-artifact@v2
-        with:
-          name: Documentation
-          path: ./docs/_site/
+      # - name: Download Documentation
+      #   uses: actions/download-artifact@v2
+      #   with:
+      #     name: Documentation
+      #     path: ./docs/_site/
 
-      - name: Publish Documentation
-        uses: JamesIves/github-pages-deploy-action@4.1.0
-        with:
-          branch: gh-pages
-          folder: ./docs/_site/
+      # - name: Publish Documentation
+      #   uses: JamesIves/github-pages-deploy-action@4.1.0
+      #   with:
+      #     branch: gh-pages
+      #     folder: ./docs/_site/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -147,7 +145,7 @@ jobs:
           files: ./artifacts/*.nupkg
           draft: true
 
-      - name: Publish on NuGet
-        run: |
-          cd ./artifacts/
-          dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_SECRET }}
+      # - name: Publish on NuGet
+      #   run: |
+      #     cd ./artifacts/
+      #     dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_SECRET }}
