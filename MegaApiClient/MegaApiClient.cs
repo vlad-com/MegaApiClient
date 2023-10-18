@@ -210,6 +210,26 @@
       return (hash, passwordAesKey.ToBase64());
     }
 
+    public (string, string) DecipherMasterKey(string masterKey, string sessionId, string passwordAesKey, string privateKey)
+    {
+      // Decrypt master key using our password key
+      var cryptedMasterKey = masterKey.FromBase64();
+      masterKey = Crypto.DecryptKey(cryptedMasterKey, passwordAesKey.FromBase64()).ToBase64();
+
+      // Decrypt RSA private key using decrypted master key
+      var cryptedRsaPrivateKey = privateKey.FromBase64();
+      var rsaPrivateKeyComponents = Crypto.GetRsaPrivateKeyComponents(cryptedRsaPrivateKey, _masterKey);
+
+      // Decrypt session id
+      var encryptedSid = sessionId.FromBase64();
+      var sid = Crypto.RsaDecrypt(encryptedSid.FromMPINumber(), rsaPrivateKeyComponents[0], rsaPrivateKeyComponents[1], rsaPrivateKeyComponents[2]);
+
+      // Session id contains only the first 43 bytes
+      sessionId = sid.Take(43).ToArray().ToBase64();
+
+      return (sessionId, masterKey);
+    }
+
     public event EventHandler<ApiRequestFailedEventArgs> ApiRequestFailed;
 
     public bool IsLoggedIn => _sessionId != null;
