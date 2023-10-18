@@ -164,6 +164,52 @@
       }
     }
 
+    public (string, string) GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
+    {
+      // Mega uses a new way to hash password based on a salt sent by Mega during prelogin
+      var saltBytes = Salt.FromBase64();
+      var passwordBytes = password.ToBytesPassword();
+      const int Iterations = 100000;
+
+      var derivedKeyBytes = new byte[32];
+
+      #if NET40 || NET45 || NET46 || NETSTANDARD1_3
+        using (var hmac = new HMACSHA512())
+          {
+            var pbkdf2 = new Pbkdf2(hmac, passwordBytes, saltBytes, Iterations);
+            derivedKeyBytes = pbkdf2.GetBytes(derivedKeyBytes.Length);
+          }
+      #else
+        derivedKeyBytes = KeyDerivation.Pbkdf2(
+          password: password,
+          salt : saltBytes,
+          prf: KeyDerivationPrf.HMACSHA512,
+          iterationCount: Iterations,
+          numBytesRequested: derivedKeyBytes.Length
+        );
+      #endif
+
+      // Derived key contains master key (0-16) and password hash (16-32)
+      return (
+        derivedKeyBytes.Skip(16).ToArray().ToBase64(),
+        derivedKeyBytes.Take(16).ToArray().ToBase64()
+      );
+    }
+      
+    public (string, string) GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
+    {
+      // Retrieve password as UTF8 byte array
+      var passwordBytes = password.ToBytesPassword();
+
+      // Encrypt password to use password as key for the hash
+      var passwordAesKey = PrepareKey(passwordBytes);
+
+      // Hash email and password to decrypt master key on Mega servers
+      var hash = GenerateHash(email.ToLowerInvariant(), passwordAesKey);
+
+      return (hash, passwordAesKey.ToBase64());
+    }
+
     public event EventHandler<ApiRequestFailedEventArgs> ApiRequestFailed;
 
     public bool IsLoggedIn => _sessionId != null;
