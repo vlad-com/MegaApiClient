@@ -165,9 +165,9 @@
     }
 
 #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
-    public (string, string) GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
+    public (string, string) GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
 #else
-    public Tuple<string, string> GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
+    public Tuple<string, string> GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
 #endif
     {
       // Mega uses a new way to hash password based on a salt sent by Mega during prelogin
@@ -208,9 +208,9 @@
     }
 
 #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
-    public (string, string) GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
+    public (string, string) GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
 #else
-    public Tuple<string, string> GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
+    public Tuple<string, string> GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
 #endif
     {
       // Retrieve password as UTF8 byte array
