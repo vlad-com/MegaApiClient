@@ -164,7 +164,11 @@
       }
     }
 
+#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
     public (string, string) GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
+#else
+    public Tuple<string, string> GenerateAuthInfos_V1(string email, string password, string Salt, int Version, string mfaKey = null)
+#endif
     {
       // Mega uses a new way to hash password based on a salt sent by Mega during prelogin
       var saltBytes = Salt.FromBase64();
@@ -190,13 +194,24 @@
       #endif
 
       // Derived key contains master key (0-16) and password hash (16-32)
+      #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
       return (
         derivedKeyBytes.Skip(16).ToArray().ToBase64(),
         derivedKeyBytes.Take(16).ToArray().ToBase64()
       );
+      #else
+      return Tuple.Create(
+        derivedKeyBytes.Skip(16).ToArray().ToBase64(),
+        derivedKeyBytes.Take(16).ToArray().ToBase64()
+      );
+      #endif
     }
-      
+
+#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
     public (string, string) GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
+#else
+    public Tuple<string, string> GenerateAuthInfos_V2(string email, string password, string Salt, int Version, string mfaKey = null)
+#endif
     {
       // Retrieve password as UTF8 byte array
       var passwordBytes = password.ToBytesPassword();
@@ -206,11 +221,18 @@
 
       // Hash email and password to decrypt master key on Mega servers
       var hash = GenerateHash(email.ToLowerInvariant(), passwordAesKey);
-
+      #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
       return (hash, passwordAesKey.ToBase64());
+      #else
+      return Tuple.Create(hash, passwordAesKey.ToBase64());
+      #endif
     }
 
+#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
     public (string, string) DecipherMasterKey(string masterKey, string sessionId, string passwordAesKey, string privateKey)
+#else
+    public Tuple<string, string> DecipherMasterKey(string masterKey, string sessionId, string passwordAesKey, string privateKey)
+#endif
     {
       // Decrypt master key using our password key
       var cryptedMasterKey = masterKey.FromBase64();
@@ -227,8 +249,13 @@
       // Session id contains only the first 43 bytes
       sessionId = sid.Take(43).ToArray().ToBase64();
 
+      #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
       return (sessionId, masterKey);
+      #else
+      return Tuple.Create(sessionId, masterKey);
+      #endif
     }
+
 
     public event EventHandler<ApiRequestFailedEventArgs> ApiRequestFailed;
 
