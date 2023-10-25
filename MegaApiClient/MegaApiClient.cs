@@ -14,11 +14,13 @@
   using Newtonsoft.Json;
   using Newtonsoft.Json.Linq;
   using Serialization;
-#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
-  using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-#else
+#if NET40 || NET45 || NET46 || NETSTANDARD1_3
   using System.Security.Cryptography;
   using Medo.Security.Cryptography;
+#elif NET6_0_OR_GREATER
+  using System.Security.Cryptography;
+#else
+  using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 #endif
 
   public partial class MegaApiClient : IMegaApiClient
@@ -110,13 +112,21 @@
 
         var derivedKeyBytes = new byte[32];
 
-        #if NET40 || NET45 || NET46 || NETSTANDARD1_3
+#if NET40 || NET45 || NET46 || NETSTANDARD1_3
           using (var hmac = new HMACSHA512())
             {
               var pbkdf2 = new Pbkdf2(hmac, passwordBytes, saltBytes, Iterations);
               derivedKeyBytes = pbkdf2.GetBytes(derivedKeyBytes.Length);
             }
-        #else
+#elif NET6_0_OR_GREATER
+        derivedKeyBytes = Rfc2898DeriveBytes.Pbkdf2(
+          password,
+          saltBytes,
+          Iterations,
+          HashAlgorithmName.SHA512,
+          derivedKeyBytes.Length
+        );
+#else
           derivedKeyBytes = KeyDerivation.Pbkdf2(
             password: password,
             salt : saltBytes,
@@ -124,7 +134,7 @@
             iterationCount: Iterations,
             numBytesRequested: derivedKeyBytes.Length
           );
-        #endif
+#endif
 
         // Derived key contains master key (0-16) and password hash (16-32)
         if (!string.IsNullOrEmpty(mfaKey))
@@ -165,25 +175,33 @@
     }
 
 #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
-    public (string, string) GenerateAuthInfos_V2(string email, string password, string Salt)
+    public static (string, string) GenerateAuthInfos_V2(string email, string password, string salt)
 #else
-    public Tuple<string, string> GenerateAuthInfos_V2(string email, string password, string Salt)
+    public Tuple<string, string> GenerateAuthInfos_V2(string email, string password, string salt)
 #endif
     {
       // Mega uses a new way to hash password based on a salt sent by Mega during prelogin
-      var saltBytes = Salt.FromBase64();
+      var saltBytes = salt.FromBase64();
       var passwordBytes = password.ToBytesPassword();
       const int Iterations = 100000;
 
       var derivedKeyBytes = new byte[32];
 
-      #if NET40 || NET45 || NET46 || NETSTANDARD1_3
+#if NET40 || NET45 || NET46 || NETSTANDARD1_3
         using (var hmac = new HMACSHA512())
           {
             var pbkdf2 = new Pbkdf2(hmac, passwordBytes, saltBytes, Iterations);
             derivedKeyBytes = pbkdf2.GetBytes(derivedKeyBytes.Length);
           }
-      #else
+#elif NET6_0_OR_GREATER
+      derivedKeyBytes = Rfc2898DeriveBytes.Pbkdf2(
+        password,
+        saltBytes,
+        Iterations,
+        HashAlgorithmName.SHA512,
+        derivedKeyBytes.Length
+      );
+#else
         derivedKeyBytes = KeyDerivation.Pbkdf2(
           password: password,
           salt : saltBytes,
@@ -191,26 +209,26 @@
           iterationCount: Iterations,
           numBytesRequested: derivedKeyBytes.Length
         );
-      #endif
+#endif
 
       // Derived key contains master key (0-16) and password hash (16-32)
-      #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
+#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
       return (
         derivedKeyBytes.Skip(16).ToArray().ToBase64(),
         derivedKeyBytes.Take(16).ToArray().ToBase64()
       );
-      #else
+#else
       return Tuple.Create(
         derivedKeyBytes.Skip(16).ToArray().ToBase64(),
         derivedKeyBytes.Take(16).ToArray().ToBase64()
       );
-      #endif
+#endif
     }
 
 #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
-    public (string, string) GenerateAuthInfos_V1(string email, string password, string Salt)
+    public static (string, string) GenerateAuthInfos_V1(string email, string password)
 #else
-    public Tuple<string, string> GenerateAuthInfos_V1(string email, string password, string Salt)
+    public Tuple<string, string> GenerateAuthInfos_V1(string email, string password)
 #endif
     {
       // Retrieve password as UTF8 byte array
@@ -221,11 +239,11 @@
 
       // Hash email and password to decrypt master key on Mega servers
       var hash = GenerateHash(email.ToLowerInvariant(), passwordAesKey);
-      #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
+#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
       return (hash, passwordAesKey.ToBase64());
-      #else
+#else
       return Tuple.Create(hash, passwordAesKey.ToBase64());
-      #endif
+#endif
     }
 
 #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
@@ -249,13 +267,12 @@
       // Session id contains only the first 43 bytes
       sessionId = sid.Take(43).ToArray().ToBase64();
 
-      #if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
+#if !NET40 && !NET45 && !NET46 && !NETSTANDARD1_3
       return (sessionId, masterKey);
-      #else
+#else
       return Tuple.Create(sessionId, masterKey);
-      #endif
+#endif
     }
-
 
     public event EventHandler<ApiRequestFailedEventArgs> ApiRequestFailed;
 
